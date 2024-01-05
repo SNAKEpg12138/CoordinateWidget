@@ -13,8 +13,6 @@ class QHBoxLayout;
 
 QT_END_NAMESPACE
 
-typedef QMap<QString, QStringList> MyMap;
-using MyMap = QMap<QString, QStringList>;
 
 typedef struct
 {
@@ -31,13 +29,9 @@ public:
     ~Widget();
 
     bool readExcel();
-    void setupGraph(QCustomPlot *customPlot);
-    void setupGraph2(QCustomPlot *customPlot, const QPen& pen);
-
     void test();
-    void test2();
 
-    void quchong(const QList<IP_TIME>& ql, const QList<IP_TIME>& ql2, QList<QString>& qlOut);
+    void getSameIP(const QList<IP_TIME>& ql, const QList<IP_TIME>& ql2, QList<QString>& qlOut);
 
 protected:
     void resizeEvent(QResizeEvent* event) override;
@@ -46,8 +40,6 @@ private:
     Ui::Widget *ui;
     QHBoxLayout* mainHLayout;
 
-    //QMap<QString, QStringList> map;
-    QVector<MyMap> vec;
     QCustomPlot* plot;
 
     QVector<QList<IP_TIME>> vlIP_Time;
