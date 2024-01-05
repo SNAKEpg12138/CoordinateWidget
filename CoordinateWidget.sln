@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.33927.289
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CoordinateWidget", "CoordinateWidget.vcxproj", "{CE84F3C1-366C-304C-ABE9-A6878C977F6B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{CE84F3C1-366C-304C-ABE9-A6878C977F6B}.Debug|x64.ActiveCfg = Debug|x64
+		{CE84F3C1-366C-304C-ABE9-A6878C977F6B}.Debug|x64.Build.0 = Debug|x64
+		{CE84F3C1-366C-304C-ABE9-A6878C977F6B}.Release|x64.ActiveCfg = Release|x64
+		{CE84F3C1-366C-304C-ABE9-A6878C977F6B}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {58BDA513-AA76-4319-A646-C57B8AC11F0C}
+	EndGlobalSection
+EndGlobal

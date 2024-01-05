@@ -16,33 +16,45 @@ QT_END_NAMESPACE
 
 typedef struct
 {
-    QString qsTime;
-    QString qsIP;
-}IP_TIME, *PIP_TIME;
+	QString qsTime;
+	QString qsIP;
+}IP_TIME, * PIP_TIME;
 
 class Widget : public QWidget
 {
-    Q_OBJECT
+	Q_OBJECT
 
 public:
-    Widget(QWidget *parent = nullptr);
-    ~Widget();
+	Widget(QWidget* parent = nullptr);
+	~Widget();
 
-    bool readExcel();
-    void test();
+	bool readExcel();
+	void test();
 
-    void getSameIP(const QList<IP_TIME>& ql, const QList<IP_TIME>& ql2, QList<QString>& qlOut);
+	void test2();
+
+	void getSameIP(const QList<IP_TIME>& ql, const QList<IP_TIME>& ql2, QList<QString>& qlOut);
+
+	QMap<QString, QList<QPair<QDateTime, QDateTime>>> getOverlappingTimePeriods(QMap<QString, QList<QPair<QDateTime, QDateTime>>>& hashMap);
+	void printMap(QMap<QString, QList<QPair<QDateTime, QDateTime>>>& hashMap);
+
+public slots:
+	void showPointToolTip(QMouseEvent* event);
 
 protected:
-    void resizeEvent(QResizeEvent* event) override;
+	void resizeEvent(QResizeEvent* event) override;
 
 private:
-    Ui::Widget *ui;
-    QHBoxLayout* mainHLayout;
+	Ui::Widget* ui;
+	QHBoxLayout* mainHLayout;
 
-    QCustomPlot* plot;
+	QCustomPlot* plot;
 
-    QVector<QList<IP_TIME>> vlIP_Time;
+	QVector<QList<IP_TIME>> vlIP_Time;
+
+	QList<QString> qlLabels;
+
+	QMap<QString, QList<QPair<QDateTime, QDateTime>>> hashMap;
 
 
 };

@@ -13,284 +13,523 @@
 #include <QMap>
 
 #include <QSharedPointer>
+#include <QHash>
 
-Widget::Widget(QWidget *parent)
-    : QWidget(parent)
-    , ui(new Ui::Widget)
+#include "Logger.h"
+
+Widget::Widget(QWidget* parent)
+	: QWidget(parent)
+	, ui(new Ui::Widget)
 {
-    ui->setupUi(this);
+	ui->setupUi(this);
+	Logger::startLogService();
 
-    mainHLayout = new QHBoxLayout(this);
+	mainHLayout = new QHBoxLayout(this);
 
-    if ( readExcel() )
-    {
-        test();
-    }
+	if (readExcel())
+	{
+		//显示
+		test();
+
+		test2();
+		qDebug() << "\n hash size: " << hashMap.size() << "\n";
+
+		//printMap(hashMap);
+
+		QMap<QString, QList<QPair<QDateTime, QDateTime>>> tmpMap = getOverlappingTimePeriods(hashMap);
+		qDebug() << "\n tmpMap size: " << tmpMap.size() << "\n";
+
+		printMap(tmpMap);
+	}
 
 }
 
 Widget::~Widget()
 {
-    delete ui;
+	Logger::stopLogService();
+	delete ui;
 }
 
 
 bool Widget::readExcel()
 {
-    // 打开文件对话框，选择文件
-    QString fileName = QFileDialog::getOpenFileName(nullptr, "Open Excel", QDir::currentPath(), "Excel Files (*.xls *.xlsx)");
+	// 打开文件对话框，选择文件
+	QString fileName = QFileDialog::getOpenFileName(nullptr, "Open Excel", QDir::currentPath(), "Excel Files (*.xls *.xlsx)");
 
-    if (fileName.isEmpty())
-    {
-        return false;
-    }
-    vlIP_Time.clear();
-
-
-    // 创建连接到Excel的对象
-    QAxObject* excel = new QAxObject("Excel.Application");
-
-    // 打开工作簿
-    QAxObject* workbooks = excel->querySubObject("WorkBooks");
-
-    //打开文件
-    QAxObject* workbook = workbooks->querySubObject("Open(QString, QVariant)", fileName, 0);
-
-    // 获取表格对象集合
-    QAxObject* worksheets = workbook->querySubObject("Worksheets");
-
-    // 计算工作表数量
-    int worksheetCount = worksheets->dynamicCall("Count()").toInt();
-
-    // 遍历工作表集合
-    for(int i = 1; i <= worksheetCount; i++)
-    {
-        qDebug() << "\n =============" << "《 sheet" << i << "》============== \n\n";
-
-        QList<IP_TIME> qlTmp;
-
-        // 获取工作表
-        QAxObject* worksheet = worksheets->querySubObject("Item(int)", i);
-
-        // 获取行数
-        QAxObject* usedRange = worksheet->querySubObject("UsedRange");
-        int rowCount = usedRange->querySubObject("Rows")->property("Count").toInt();
-
-        // 获取列数
-        int columnCount = usedRange->querySubObject("Columns")->property("Count").toInt();
-
-        qDebug() << "rowCount: " << rowCount << ", columnCount: " << columnCount << "\n";
+	if (fileName.isEmpty())
+	{
+		return false;
+	}
+	vlIP_Time.clear();
 
 
-        // 遍历工作表的所有行
-        for(int row = 1; row <= rowCount; row++)
-        {
-            // 遍历工作表的所有列
-            //固定：第一、二列是时间，第三列是IP
-            QString qsTime;
-            for(int column = 1; column <= columnCount; column++)
-            {
-                // 读取单元格内容
-                QAxObject* cell = worksheet->querySubObject("Cells(int,int)", row, column);
+	// 创建连接到Excel的对象
+	QAxObject* excel = new QAxObject("Excel.Application");
 
-                QString cellValue;
-                if (column == 1)
-                {
-                    QDateTime cellDateTime = cell->dynamicCall("Value()").toDateTime();
-                    cellValue = cellDateTime.toString("yyyy/MM/dd");
-                }
-                else
-                {
-                    cellValue = cell->dynamicCall("Value()").toString();
-                }
+	// 打开工作簿
+	QAxObject* workbooks = excel->querySubObject("WorkBooks");
 
-                if (cellValue.isEmpty() || cellValue == "IP" || cellValue == "时间")
-                {
-                    qDebug() << "cellValue: " << cellValue;
-                    continue;
-                }
+	//打开文件
+	QAxObject* workbook = workbooks->querySubObject("Open(QString, QVariant)", fileName, 0);
+
+	// 获取表格对象集合
+	QAxObject* worksheets = workbook->querySubObject("Worksheets");
+
+	// 计算工作表数量
+	int worksheetCount = worksheets->dynamicCall("Count()").toInt();
+
+	// 遍历工作表集合
+	for (int i = 1; i <= worksheetCount; i++)
+	{
+		qDebug() << "\n =============" << "《 sheet" << i << "》============== \n\n";
+
+		QList<IP_TIME> qlTmp;
+
+		// 获取工作表
+		QAxObject* worksheet = worksheets->querySubObject("Item(int)", i);
+
+		// 获取行数
+		QAxObject* usedRange = worksheet->querySubObject("UsedRange");
+		int rowCount = usedRange->querySubObject("Rows")->property("Count").toInt();
+
+		// 获取列数
+		int columnCount = usedRange->querySubObject("Columns")->property("Count").toInt();
+
+		qDebug() << "rowCount: " << rowCount << ", columnCount: " << columnCount << "\n";
 
 
-                if (column == 3)
-                {
-                    if (cellValue.isEmpty())
-                    {
-                        qDebug() << "Row:" << row << "Column:" << column << "value :" << cellValue;
-                        continue;
-                    }
-                    qsTime = qsTime.left(qsTime.size() - 10);
 
-                    IP_TIME ipTime;
-                    ipTime.qsTime = qsTime;
-                    ipTime.qsIP = cellValue;
-                    qlTmp.append(ipTime);
-                }
-                else
-                {
+		// 遍历工作表的所有行
+		for (int row = 1; row <= rowCount; row++)
+		{
 
-                    qsTime += cellValue;
-                }
 
-                // 输出单元格内容
-                qDebug() << "Row:" << row << "Column:" << column << "value :" << cellValue;
-            }
 
-        }//end for(int row = 1; row <= rowCount; row++)
+			// 遍历工作表的所有列
+			//固定：第一、二列是时间，第三列是IP
+			QString qsTime;
+			for (int column = 1; column <= columnCount; column++)
+			{
+				// 读取单元格内容
+				QAxObject* cell = worksheet->querySubObject("Cells(int,int)", row, column);
 
-        vlIP_Time.append(qlTmp);
+				QString cellValue;
+				if (column == 1)
+				{
+					QDateTime cellDateTime = cell->dynamicCall("Value()").toDateTime();
+					cellValue = cellDateTime.toString("yyyy/MM/dd");
+				}
+				else
+				{
+					cellValue = cell->dynamicCall("Value()").toString();
+				}
 
-    }
+				if (cellValue.isEmpty() || cellValue == "IP" || cellValue == "时间")
+				{
+					qDebug() << "cellValue: " << cellValue;
+					continue;
+				}
 
-    // 关闭工作簿并关闭Excel应用
-    workbook->dynamicCall("Close()");
-    excel->dynamicCall("Quit()");
-    delete excel;
 
-    return true;
+				if (column == 3)
+				{
+					if (cellValue.isEmpty())
+					{
+						//qDebug() << "Row:" << row << "Column:" << column << "value :" << cellValue;
+						continue;
+					}
+					qsTime = qsTime.left(qsTime.size() - 10);
+
+					IP_TIME ipTime;
+					ipTime.qsTime = qsTime;
+					ipTime.qsIP = cellValue;
+					qlTmp.append(ipTime);
+
+				}
+				else
+				{
+
+					qsTime += cellValue;
+				}
+
+				// 输出单元格内容
+				//qDebug() << "Row:" << row << "Column:" << column << "value :" << cellValue;
+			}
+
+		}//end for(int row = 1; row <= rowCount; row++)
+
+		vlIP_Time.append(qlTmp);
+
+	}
+
+	// 关闭工作簿并关闭Excel应用
+	workbook->dynamicCall("Close()");
+	excel->dynamicCall("Quit()");
+	delete excel;
+
+	return true;
 }
 
 void Widget::getSameIP(const QList<IP_TIME>& ql, const QList<IP_TIME>& ql2, QList<QString>& common)
 {
-    QSet<QString> commonSet;  // 使用QSet进行去重
-    QHash<QString, IP_TIME> hash;
+	common.clear();
+	QSet<QString> commonSet;  // 使用QSet进行去重
+	QHash<QString, IP_TIME> hash;
 
-    // 将其中一个列表转换为QHash
-    for (int i = 0; i < ql.size(); ++i) {
-        hash.insert(ql[i].qsIP, ql[i]);
-    }
+	// 将其中一个列表转换为QHash
+	for (int i = 0; i < ql.size(); ++i) {
+		hash.insert(ql[i].qsIP, ql[i]);
+	}
 
-    // 在另一列表中查询
-    for (int j = 0; j < ql2.size(); ++j) {
-        if (hash.contains(ql2[j].qsIP)){
-            // 将共同元素的IP添加到QSet中
-            commonSet.insert(ql2[j].qsIP);  // 注意这里只添加ql2[j].qsIP
-        }
-    }
+	// 在另一列表中查询
+	for (int j = 0; j < ql2.size(); ++j) {
+		if (hash.contains(ql2[j].qsIP)) {
+			// 将共同元素的IP添加到QSet中
+			commonSet.insert(ql2[j].qsIP);  // 注意这里只添加ql2[j].qsIP
+		}
+	}
 
-    // 转换QSet为QList
-    common = commonSet.values();
+	// 转换QSet为QList
+	common = commonSet.values();
 
 }
 
 void Widget::test()
 {
-    qDebug() << "\n test2 \n";
-    plot = new QCustomPlot();
-    mainHLayout->addWidget(plot);
+	qDebug() << "\n test2 \n";
+	plot = new QCustomPlot();
+	mainHLayout->addWidget(plot);
 
-    plot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom | QCP::iSelectPlottables);
+	plot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom | QCP::iSelectPlottables);
+	//plot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom | QCP::iSelectPlottables | QCP::iSelectAxes);
+	//plot->setSelectionTolerance(5); // 根据需要调整选择公差，此处值为15像素
+	//connect(plot, SIGNAL(mouseMove(QMouseEvent*)), this, SLOT(showPointToolTip(QMouseEvent*)));
 
-    QSharedPointer<QCPAxisTickerDateTime> dateTicker(new QCPAxisTickerDateTime);
-    //dateTicker->setDateTimeFormat("hh:mm:ss");
-    dateTicker->setDateTimeFormat("yyyy/MM/dd hh:mm:ss");
-    plot->xAxis->setTicker(dateTicker);
-    plot->xAxis->setLabel("Time");
-    plot->yAxis->setLabel("IP Address");
+	QSharedPointer<QCPAxisTickerDateTime> dateTicker(new QCPAxisTickerDateTime);
+	//dateTicker->setDateTimeFormat("hh:mm:ss");
+	dateTicker->setDateTimeFormat("yyyy/MM/dd hh:mm:ss");
+	plot->xAxis->setTicker(dateTicker);
+	plot->xAxis->setLabel("Time");
+	plot->yAxis->setLabel("IP Address");
 
-    QList<QString> qlLabels;
-    //只显示重复IP
-    for (int i = 0; i < vlIP_Time.size(); i++)
-    {
-        if (i + 1 >= vlIP_Time.size())
-        {
-            break;
-        }
+	qlLabels.clear();
+	//只显示重复IP
+	for (int i = 0; i < vlIP_Time.size(); i++)
+	{
+		if (i + 1 >= vlIP_Time.size())
+		{
+			break;
+		}
 
-        QList<IP_TIME> ql = vlIP_Time[i];
-        QList<IP_TIME> ql2 = vlIP_Time[i + 1];
-
-
-        getSameIP(ql, ql2, qlLabels);
-
-    }
-    // 使用 'qSort' 函数对 QList 进行排序
-    std::sort(qlLabels.begin(), qlLabels.end());
-    qDebug() << "\n qlLabels size: " << qlLabels.size() << "\n";
-    qDebug() << qlLabels << "\n";
-
-    QVector<double> ticks;
-    QVector<QString> labels;
-    int i = 0;
-    foreach (const QString &ip, qlLabels)
-    {
-        ticks << i;
-        labels << ip;
-        //qDebug() << "ip: " << ip;
-        ++i;
-    }
-
-    QSharedPointer<QCPAxisTickerText> textTicker(new QCPAxisTickerText);
-    textTicker->addTicks(ticks, labels);
-    plot->yAxis->setTicker(textTicker);
-
-    for (int i = 0; i < vlIP_Time.size(); i++)
-    {
-        plot->addGraph();
-        plot->graph(i)->setLineStyle(QCPGraph::lsNone);
-        plot->graph(i)->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssDisc));
-        if (i == 0)
-        {
-            plot->graph(0)->setPen(QPen(Qt::blue, 3));
-            plot->graph(0)->setName("Sheet 1");
-        }
-        else if (i == 1)
-        {
-            plot->graph(1)->setPen(QPen(Qt::red, 1));
-            plot->graph(1)->setName("Sheet 2");
-        }
-    }
-
-    //添加数据
-    qDebug() << "\n add data \n";
+		QList<IP_TIME> ql = vlIP_Time[i];
+		QList<IP_TIME> ql2 = vlIP_Time[i + 1];
 
 
+		getSameIP(ql, ql2, qlLabels);
 
-    for (int i = 0; i < vlIP_Time.size(); i++)
-    {
+	}
+	// 使用 'qSort' 函数对 QList 进行排序
+	std::sort(qlLabels.begin(), qlLabels.end());
+	qDebug() << "\n qlLabels size: " << qlLabels.size() << "\n";
+	qDebug() << qlLabels << "\n";
 
-        QList<IP_TIME> qlIP_TIME = vlIP_Time[i];
+	QVector<double> ticks;
+	QVector<QString> labels;
+	int i = 0;
+	foreach(const QString & ip, qlLabels)
+	{
+		ticks << i;
+		labels << ip;
+		//qDebug() << "ip: " << ip;
+		++i;
+	}
 
-        QString qsOldIP = qlIP_TIME.first().qsIP;
-        QString qsOldTime;
+	QSharedPointer<QCPAxisTickerText> textTicker(new QCPAxisTickerText);
+	textTicker->addTicks(ticks, labels);
+	plot->yAxis->setTicker(textTicker);
 
-        for (int j = 0; j < qlIP_TIME.size(); j++)
-        {
-            QString qsIP = qlIP_TIME[j].qsIP;
-            QString qsTime = qlIP_TIME[j].qsTime;
+	for (int i = 0; i < vlIP_Time.size(); i++)
+	{
+		plot->addGraph();
+		plot->graph(i)->setLineStyle(QCPGraph::lsNone);
+		plot->graph(i)->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssDisc));
+		if (i == 0)
+		{
+			plot->graph(i)->setPen(QPen(Qt::blue, 3));
+			plot->graph(i)->setName("zhang");
+		}
+		else if (i == 1)
+		{
+			plot->graph(i)->setPen(QPen(Qt::red, 1));
+			plot->graph(i)->setName("ma");
+		}
+	}
 
-            //只显示重复IP
-            if (qlLabels.indexOf(qsIP) == -1)
-            {
-                continue;
-            }
+	//添加数据
+	qDebug() << "\n add data \n";
 
-            QDateTime dateTime = QDateTime::fromString(qsTime, "yyyy/MM/dd HH:mm:ss");
-            double time = dateTime.toMSecsSinceEpoch()/1000.0;
 
-            qDebug() << "qlTime: " << qsTime << ",qsIP: " << qsIP << ", index: " << qlLabels.indexOf(qsIP);
 
-            if (qsIP != qsOldIP)
-            {
+	for (int i = 0; i < vlIP_Time.size(); i++)
+	{
 
-                plot->graph(i)->addData(time, qlLabels.indexOf(qsOldIP));
-            }
-            qsOldIP = qsIP;
-            qsOldTime = qsTime;
+		QList<IP_TIME> qlIP_TIME = vlIP_Time[i];
 
-            plot->graph(i)->addData(time, qlLabels.indexOf(qsIP));
+		QString qsOldIP = qlIP_TIME.first().qsIP;
+		QString qsOldTime;
 
-        }
+		for (int j = 0; j < qlIP_TIME.size(); j++)
+		{
+			QString qsIP = qlIP_TIME[j].qsIP;
+			QString qsTime = qlIP_TIME[j].qsTime;
 
-    }
+			//只显示重复IP
+			if (qlLabels.indexOf(qsIP) == -1)
+			{
+				continue;
+			}
 
-    plot->rescaleAxes();
-    plot->replot();
+			QDateTime dateTime = QDateTime::fromString(qsTime, "yyyy/MM/dd HH:mm:ss");
+			double time = dateTime.toMSecsSinceEpoch() / 1000.0;
 
-    plot->show();
+			//qDebug() << "qlTime: " << qsTime << ",qsIP: " << qsIP << ", index: " << qlLabels.indexOf(qsIP);
+
+			if (qsIP != qsOldIP)
+			{
+
+				plot->graph(i)->addData(time, qlLabels.indexOf(qsOldIP));
+			}
+			qsOldIP = qsIP;
+			qsOldTime = qsTime;
+
+			plot->graph(i)->addData(time, qlLabels.indexOf(qsIP));
+
+		}
+
+	}
+
+	plot->rescaleAxes();
+	plot->replot();
+
+	plot->show();
+}
+
+void Widget::showPointToolTip(QMouseEvent* event)
+{
+	int x = event->pos().x(); // 鼠标在窗口中的x坐标
+	int y = event->pos().y(); // 鼠标在窗口中的y坐标
+
+	double graph_x = plot->xAxis->pixelToCoord(x); // 将像素坐标转换为图表坐标
+	double graph_y = plot->yAxis->pixelToCoord(y);
+
+	// 遍历所有的图
+	for (int i = 0; i < plot->graphCount(); ++i)
+	{
+		QCPGraph* graph = plot->graph(i);
+
+		qDebug() << "all name: " << graph->name();
+
+		int dataIndex = graph->findBegin(graph_x, true); // 查找鼠标指向点的索引
+		// 如果找到，且该点的位置与鼠标指向的位置相近（在一定的公差范围内，此处为15像素）
+		if (dataIndex >= 0 && dataIndex < graph->dataCount() && qAbs(plot->yAxis->coordToPixel(graph->dataMainValue(dataIndex)) - y) < 5)
+		{
+			QDateTime dt;
+			dt.setSecsSinceEpoch(graph->dataMainKey(dataIndex));
+			QString qsName = graph->name();
+			QString qsTime = dt.toString("yyyy/MM/dd hh:mm:ss");
+			int nIndex = (int)graph->dataMainValue(dataIndex);
+			QString qsIP = qlLabels.at(nIndex);
+			qDebug() << "qsName: " << qsName << ", qsTime: " << qsTime << ", nIndex: " << nIndex << "qsIP: " << qsIP;
+
+			QString tooltip = QString("%1\nTime:%2\nIP:%3").arg(qsName).arg(qsTime).arg(qsIP);
+			QToolTip::showText(event->globalPos(), tooltip); // 显示信息
+			return;
+		}
+	}
+	// 如果没有找到数据点，则隐藏提示框
+	QToolTip::hideText();
 }
 
 void Widget::resizeEvent(QResizeEvent* event)
 {
-    //plot->resize(this->size());
-    QWidget::resizeEvent(event);
+	//plot->resize(this->size());
+	QWidget::resizeEvent(event);
+}
+
+void Widget::test2()
+{
+	//QVector<QList<IP_TIME>> vlIP_Time;
+	hashMap.clear();
+
+	for (int i = 0; i < vlIP_Time.size(); i++)
+	{
+		QList<IP_TIME> qlTime = vlIP_Time[i];
+
+		if (qlTime.empty())
+		{
+			continue;
+		}
+
+		QString qsOldIP = qlTime.first().qsIP;
+		QString qsOldTime = qlTime.first().qsTime;
+
+		for (int j = 0; j < qlTime.count(); j++)
+		{
+			IP_TIME ip_time = qlTime[j];
+
+			QString qsIP = ip_time.qsIP;
+			QString qsTime = ip_time.qsTime;
+
+			if (!qlLabels.contains(qsIP))
+			{
+				continue;
+			}
+
+			if (qsIP != qsOldIP)
+			{
+				QDateTime dateTime_begin = QDateTime::fromString(qsOldTime, "yyyy/MM/dd HH:mm:ss");
+				QDateTime dateTime_end = QDateTime::fromString(qsTime, "yyyy/MM/dd HH:mm:ss");
+
+				//qDebug() << "IP: " << qsOldIP << ", begin: " << qsOldTime << ", end: " << qsTime;
+
+				QPair<QDateTime, QDateTime> pair(dateTime_begin, dateTime_end);
+
+				//IP变化
+				if (hashMap.contains(qsOldIP))
+				{
+					hashMap[qsOldIP].append(pair);
+				}
+				else
+				{
+					QList<QPair<QDateTime, QDateTime>> qlDate;
+					qlDate.append(pair);
+					hashMap.insert(qsOldIP, qlDate);
+				}
+
+				qsOldIP = qsIP;
+				qsOldTime = qsTime;
+			}
+			else
+			{
+
+			}
+		}
+	}
+}
+
+QMap<QString, QList<QPair<QDateTime, QDateTime>>> Widget::getOverlappingTimePeriods(QMap<QString, QList<QPair<QDateTime, QDateTime>>>& hashMap)
+{
+	QMap<QString, QList<QPair<QDateTime, QDateTime>>> resultMap;
+
+
+	QList<QString> keys = hashMap.keys();
+
+	Logger::writeLog(QString(u8"两个表中都有用到的IP数量为：%1").arg(QString::number(keys.count())));
+
+	Logger::writeLog(QString(u8"具体如下："));
+	for (int i = 0; i < keys.count(); i++)
+	{
+		QString qsLog = QString(u8"%1: %2").arg(QString::number(i + 1)).arg(keys.at(i));
+		Logger::writeLog(qsLog);
+	}
+
+	Logger::writeLog(QString(u8"\n\n"));
+
+	for (QString key : keys)
+	{
+		QList < QPair<QDateTime, QDateTime> > qlTime = hashMap[key];
+		for (int i = 0; i < qlTime.size(); i++)
+		{
+			QPair<QDateTime, QDateTime> pair = qlTime[i];
+
+			for (int j = i + 1; j < qlTime.size(); j++)
+			{
+				QPair<QDateTime, QDateTime> pair2 = qlTime[j];
+
+
+				Logger::writeLog(QString(u8"当前比较IP: %1").arg(key));
+				Logger::writeLog(QString(u8"表1 IP使用时间区间[%1, %2]").arg(pair.first.toString("yyyy/MM/dd hh:mm:ss")).arg(pair.second.toString("yyyy/MM/dd hh:mm:ss")));
+				Logger::writeLog(QString(u8"表2 IP使用时间区间[%1, %2]").arg(pair2.first.toString("yyyy/MM/dd hh:mm:ss")).arg(pair2.second.toString("yyyy/MM/dd hh:mm:ss")));
+
+				bool bIn = false;
+				//有时间交集, 计算交集区间
+				QPair<QDateTime, QDateTime> pairSame;
+				if (pair.first > pair2.first && pair.second < pair2.second)
+				{
+					Logger::writeLog(u8"交集情况①");
+					pairSame = pair;
+					bIn = true;
+				}
+				else if (pair2.first > pair.first && pair2.second < pair.second)
+				{
+					Logger::writeLog(u8"交集情况②");
+					pairSame = pair2;
+					bIn = true;
+				}
+				else if (pair2.first > pair.first && pair2.first < pair.second)
+				{
+					Logger::writeLog(u8"交集情况③");
+					pairSame.first = pair2.first;
+					pairSame.second = pair.second;
+					bIn = true;
+				}
+				else if (pair.first > pair2.first && pair.first < pair2.second)
+				{
+					Logger::writeLog(u8"交集情况④");
+					pairSame.first = pair.first;
+					pairSame.second = pair2.second;
+					bIn = true;
+				}
+
+
+				if (bIn)
+				{
+					qDebug() << u8"当前比较IP: " << key;
+					qDebug() << u8"表1 begin: " << pair.first << ", pair end: " << pair.second;
+					qDebug() << u8"表2 begin: " << pair2.first << ", pair end: " << pair2.second;
+
+					qDebug() << u8"===时间交集 begin: " << pairSame.first << ", end: " << pairSame.second << " ===\n";
+					Logger::writeLog(QString(u8"存在时间交集 [%1, %2]").arg(pairSame.first.toString("yyyy/MM/dd hh:mm:ss")).arg(pairSame.second.toString("yyyy/MM/dd hh:mm:ss")));
+					if (resultMap.contains(key))
+					{
+						resultMap[key].append(pairSame);
+					}
+					else
+					{
+						QList<QPair<QDateTime, QDateTime>> qlTime;
+						qlTime.append(pairSame);
+						resultMap.insert(key, qlTime);
+					}
+				}
+				else
+				{
+					//qDebug() << u8"=====无时间交集=====";
+					Logger::writeLog(u8"=====无时间交集=====");
+				}
+
+				Logger::writeLog(u8"\n\n");
+
+			}//end for (int j = i + 1; j < qlTime.size(); j++)
+		}
+	}
+
+
+	return resultMap;
+}
+
+void Widget::printMap(QMap<QString, QList<QPair<QDateTime, QDateTime>>>& hashMap)
+{
+	QList<QString> keys = hashMap.keys();
+	for (QString key : keys)
+	{
+		QList < QPair<QDateTime, QDateTime> > qlTime = hashMap[key];
+		for (auto pair : qlTime)
+		{
+			qDebug() << "IP: " << key << ", begin: " << pair.first.toString() << ", end: " << pair.second.toString();
+		}
+
+		qDebug() << "\n\n ================================================== \n\n";
+	}
+
+	qDebug() << "\n\n ================================================== \n\n";
 }
