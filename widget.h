@@ -16,6 +16,12 @@ QT_END_NAMESPACE
 typedef QMap<QString, QStringList> MyMap;
 using MyMap = QMap<QString, QStringList>;
 
+typedef struct
+{
+    QString qsTime;
+    QString qsIP;
+}IP_TIME, *PIP_TIME;
+
 class Widget : public QWidget
 {
     Q_OBJECT
@@ -29,6 +35,9 @@ public:
     void setupGraph2(QCustomPlot *customPlot, const QPen& pen);
 
     void test();
+    void test2();
+
+    void quchong(const QList<IP_TIME>& ql, const QList<IP_TIME>& ql2, QList<QString>& qlOut);
 
 protected:
     void resizeEvent(QResizeEvent* event) override;
@@ -40,6 +49,9 @@ private:
     //QMap<QString, QStringList> map;
     QVector<MyMap> vec;
     QCustomPlot* plot;
+
+    QVector<QList<IP_TIME>> vlIP_Time;
+
 
 };
 #endif // WIDGET_H
