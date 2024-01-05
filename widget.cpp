@@ -20,11 +20,29 @@
 Widget::Widget(QWidget* parent)
 	: QWidget(parent)
 	, ui(new Ui::Widget)
+	, plot(nullptr)
 {
 	ui->setupUi(this);
 	Logger::startLogService();
 
-	mainHLayout = new QHBoxLayout(this);
+	mainHLayout = new QHBoxLayout(ui->widget);
+
+	connect(ui->btn_open, &QPushButton::clicked, this, &Widget::SlotBtnOpen);
+}
+
+Widget::~Widget()
+{
+	Logger::stopLogService();
+	delete ui;
+}
+
+void Widget::SlotBtnOpen()
+{
+	if (plot != nullptr)
+	{
+		delete plot;
+		plot = nullptr;
+	}
 
 	if (readExcel())
 	{
@@ -41,15 +59,7 @@ Widget::Widget(QWidget* parent)
 
 		printMap(tmpMap);
 	}
-
 }
-
-Widget::~Widget()
-{
-	Logger::stopLogService();
-	delete ui;
-}
-
 
 bool Widget::readExcel()
 {
@@ -97,14 +107,9 @@ bool Widget::readExcel()
 
 		qDebug() << "rowCount: " << rowCount << ", columnCount: " << columnCount << "\n";
 
-
-
 		// 遍历工作表的所有行
 		for (int row = 1; row <= rowCount; row++)
 		{
-
-
-
 			// 遍历工作表的所有列
 			//固定：第一、二列是时间，第三列是IP
 			QString qsTime;
@@ -251,7 +256,7 @@ void Widget::test()
 	for (int i = 0; i < vlIP_Time.size(); i++)
 	{
 		plot->addGraph();
-		plot->graph(i)->setLineStyle(QCPGraph::lsNone);
+		//plot->graph(i)->setLineStyle(QCPGraph::lsNone);
 		plot->graph(i)->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssDisc));
 		if (i == 0)
 		{
@@ -358,17 +363,13 @@ void Widget::resizeEvent(QResizeEvent* event)
 
 void Widget::test2()
 {
-	//QVector<QList<IP_TIME>> vlIP_Time;
 	hashMap.clear();
+
+	qDebug() << "test2--qlLabels size: " << qlLabels.size();
 
 	for (int i = 0; i < vlIP_Time.size(); i++)
 	{
 		QList<IP_TIME> qlTime = vlIP_Time[i];
-
-		if (qlTime.empty())
-		{
-			continue;
-		}
 
 		QString qsOldIP = qlTime.first().qsIP;
 		QString qsOldTime = qlTime.first().qsTime;
@@ -380,11 +381,6 @@ void Widget::test2()
 			QString qsIP = ip_time.qsIP;
 			QString qsTime = ip_time.qsTime;
 
-			if (!qlLabels.contains(qsIP))
-			{
-				continue;
-			}
-
 			if (qsIP != qsOldIP)
 			{
 				QDateTime dateTime_begin = QDateTime::fromString(qsOldTime, "yyyy/MM/dd HH:mm:ss");
@@ -393,6 +389,13 @@ void Widget::test2()
 				//qDebug() << "IP: " << qsOldIP << ", begin: " << qsOldTime << ", end: " << qsTime;
 
 				QPair<QDateTime, QDateTime> pair(dateTime_begin, dateTime_end);
+
+				if (!qlLabels.contains(qsOldIP))
+				{
+					qsOldIP = qsIP;
+					qsOldTime = qsTime;
+					continue;
+				}
 
 				//IP变化
 				if (hashMap.contains(qsOldIP))
@@ -408,6 +411,7 @@ void Widget::test2()
 
 				qsOldIP = qsIP;
 				qsOldTime = qsTime;
+
 			}
 			else
 			{
@@ -421,7 +425,6 @@ QMap<QString, QList<QPair<QDateTime, QDateTime>>> Widget::getOverlappingTimePeri
 {
 	QMap<QString, QList<QPair<QDateTime, QDateTime>>> resultMap;
 
-
 	QList<QString> keys = hashMap.keys();
 
 	Logger::writeLog(QString(u8"两个表中都有用到的IP数量为：%1").arg(QString::number(keys.count())));
@@ -432,11 +435,13 @@ QMap<QString, QList<QPair<QDateTime, QDateTime>>> Widget::getOverlappingTimePeri
 		QString qsLog = QString(u8"%1: %2").arg(QString::number(i + 1)).arg(keys.at(i));
 		Logger::writeLog(qsLog);
 	}
+	qDebug() << "qlLabels: " << qlLabels.size();
 
 	Logger::writeLog(QString(u8"\n\n"));
 
 	for (QString key : keys)
 	{
+
 		QList < QPair<QDateTime, QDateTime> > qlTime = hashMap[key];
 		for (int i = 0; i < qlTime.size(); i++)
 		{
@@ -445,7 +450,6 @@ QMap<QString, QList<QPair<QDateTime, QDateTime>>> Widget::getOverlappingTimePeri
 			for (int j = i + 1; j < qlTime.size(); j++)
 			{
 				QPair<QDateTime, QDateTime> pair2 = qlTime[j];
-
 
 				Logger::writeLog(QString(u8"当前比较IP: %1").arg(key));
 				Logger::writeLog(QString(u8"表1 IP使用时间区间[%1, %2]").arg(pair.first.toString("yyyy/MM/dd hh:mm:ss")).arg(pair.second.toString("yyyy/MM/dd hh:mm:ss")));
@@ -525,7 +529,7 @@ void Widget::printMap(QMap<QString, QList<QPair<QDateTime, QDateTime>>>& hashMap
 		QList < QPair<QDateTime, QDateTime> > qlTime = hashMap[key];
 		for (auto pair : qlTime)
 		{
-			qDebug() << "IP: " << key << ", begin: " << pair.first.toString() << ", end: " << pair.second.toString();
+			qDebug() << "IP: " << key << ", begin: " << pair.first.toString("yyyy/MM/dd hh:mm:ss") << ", end: " << pair.second.toString("yyyy/MM/dd hh:mm:ss");
 		}
 
 		qDebug() << "\n\n ================================================== \n\n";

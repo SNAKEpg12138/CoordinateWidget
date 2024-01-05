@@ -40,6 +40,7 @@ public:
 
 public slots:
 	void showPointToolTip(QMouseEvent* event);
+	void SlotBtnOpen();
 
 protected:
 	void resizeEvent(QResizeEvent* event) override;
