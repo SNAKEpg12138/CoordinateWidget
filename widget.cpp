@@ -23,16 +23,19 @@ Widget::Widget(QWidget* parent)
 	, plot(nullptr)
 {
 	ui->setupUi(this);
-	Logger::startLogService();
+	//Logger::startLogService();
 
 	mainHLayout = new QHBoxLayout(ui->widget);
 
 	connect(ui->btn_open, &QPushButton::clicked, this, &Widget::SlotBtnOpen);
+
+	ui->checkBox_logDetail->setChecked(true);
+	ui->label_3->hide();
 }
 
 Widget::~Widget()
 {
-	Logger::stopLogService();
+	//Logger::stopLogService();
 	delete ui;
 }
 
@@ -63,13 +66,20 @@ void Widget::SlotBtnOpen()
 
 bool Widget::readExcel()
 {
+	ui->label_3->show();
 	// 打开文件对话框，选择文件
 	QString fileName = QFileDialog::getOpenFileName(nullptr, "Open Excel", QDir::currentPath(), "Excel Files (*.xls *.xlsx)");
 
+
 	if (fileName.isEmpty())
 	{
+		ui->label_3->hide();
 		return false;
 	}
+
+
+	Logger::writeLog(u8"当前选择文件：" + fileName);
+
 	vlIP_Time.clear();
 
 
@@ -88,10 +98,13 @@ bool Widget::readExcel()
 	// 计算工作表数量
 	int worksheetCount = worksheets->dynamicCall("Count()").toInt();
 
+	Logger::writeLog(QString(u8"表1读取上限（行）：%1").arg(QString::number(ui->lineEdit_sheet1Max->text().toInt())));
+	Logger::writeLog(QString(u8"表2读取上限（行）：%1").arg(QString::number(ui->lineEdit_sheet2Max->text().toInt())));
+
 	// 遍历工作表集合
 	for (int i = 1; i <= worksheetCount; i++)
 	{
-		qDebug() << "\n =============" << "《 sheet" << i << "》============== \n\n";
+		qDebug() << u8"\n =============" << "《 sheet" << i << "》============== \n\n";
 
 		QList<IP_TIME> qlTmp;
 
@@ -110,6 +123,16 @@ bool Widget::readExcel()
 		// 遍历工作表的所有行
 		for (int row = 1; row <= rowCount; row++)
 		{
+			//这里有多余数据，强制排除一下
+			if (i == 1 && row >= ui->lineEdit_sheet1Max->text().toInt())
+			{
+				continue;
+			}
+			else if (i == 2 && row >= ui->lineEdit_sheet2Max->text().toInt())
+			{
+				continue;
+			}
+
 			// 遍历工作表的所有列
 			//固定：第一、二列是时间，第三列是IP
 			QString qsTime;
@@ -172,6 +195,8 @@ bool Widget::readExcel()
 	excel->dynamicCall("Quit()");
 	delete excel;
 
+	ui->label_3->hide();
+
 	return true;
 }
 
@@ -182,13 +207,16 @@ void Widget::getSameIP(const QList<IP_TIME>& ql, const QList<IP_TIME>& ql2, QLis
 	QHash<QString, IP_TIME> hash;
 
 	// 将其中一个列表转换为QHash
-	for (int i = 0; i < ql.size(); ++i) {
+	for (int i = 0; i < ql.size(); ++i)
+	{
 		hash.insert(ql[i].qsIP, ql[i]);
 	}
 
 	// 在另一列表中查询
-	for (int j = 0; j < ql2.size(); ++j) {
-		if (hash.contains(ql2[j].qsIP)) {
+	for (int j = 0; j < ql2.size(); ++j)
+	{
+		if (hash.contains(ql2[j].qsIP))
+		{
 			// 将共同元素的IP添加到QSet中
 			commonSet.insert(ql2[j].qsIP);  // 注意这里只添加ql2[j].qsIP
 		}
@@ -197,6 +225,23 @@ void Widget::getSameIP(const QList<IP_TIME>& ql, const QList<IP_TIME>& ql2, QLis
 	// 转换QSet为QList
 	common = commonSet.values();
 
+}
+
+void Widget::getAllIP(const QList<IP_TIME>& ql, const QList<IP_TIME>& ql2, QList<QString>& qlOut)
+{
+	qlOut.clear();
+	QSet<QString> commonSet;  // 使用QSet进行去重
+	for (int i = 0; i < ql.size(); i++)
+	{
+		commonSet.insert(ql.at(i).qsIP);
+	}
+
+	for (int j = 0; j < ql2.size(); j++)
+	{
+		commonSet.insert(ql2.at(j).qsIP);
+	}
+	// 转换QSet为QList
+	qlOut = commonSet.values();
 }
 
 void Widget::test()
@@ -218,7 +263,7 @@ void Widget::test()
 	plot->yAxis->setLabel("IP Address");
 
 	qlLabels.clear();
-	//只显示重复IP
+
 	for (int i = 0; i < vlIP_Time.size(); i++)
 	{
 		if (i + 1 >= vlIP_Time.size())
@@ -229,9 +274,9 @@ void Widget::test()
 		QList<IP_TIME> ql = vlIP_Time[i];
 		QList<IP_TIME> ql2 = vlIP_Time[i + 1];
 
-
-		getSameIP(ql, ql2, qlLabels);
-
+		//只显示重复IP，对构图有影响
+		//getSameIP(ql, ql2, qlLabels);
+		getAllIP(ql, ql2, qlLabels);
 	}
 	// 使用 'qSort' 函数对 QList 进行排序
 	std::sort(qlLabels.begin(), qlLabels.end());
@@ -240,13 +285,14 @@ void Widget::test()
 
 	QVector<double> ticks;
 	QVector<QString> labels;
-	int i = 0;
+	int nIndex = 0;
+
 	foreach(const QString & ip, qlLabels)
 	{
-		ticks << i;
+		ticks << nIndex;
 		labels << ip;
 		//qDebug() << "ip: " << ip;
-		++i;
+		++nIndex;
 	}
 
 	QSharedPointer<QCPAxisTickerText> textTicker(new QCPAxisTickerText);
@@ -301,7 +347,7 @@ void Widget::test()
 
 			if (qsIP != qsOldIP)
 			{
-
+				//添加辅助点，以更好观察
 				plot->graph(i)->addData(time, qlLabels.indexOf(qsOldIP));
 			}
 			qsOldIP = qsIP;
@@ -439,9 +485,10 @@ QMap<QString, QList<QPair<QDateTime, QDateTime>>> Widget::getOverlappingTimePeri
 
 	Logger::writeLog(QString(u8"\n\n"));
 
+	bool bRet = false;
+
 	for (QString key : keys)
 	{
-
 		QList < QPair<QDateTime, QDateTime> > qlTime = hashMap[key];
 		for (int i = 0; i < qlTime.size(); i++)
 		{
@@ -451,27 +498,38 @@ QMap<QString, QList<QPair<QDateTime, QDateTime>>> Widget::getOverlappingTimePeri
 			{
 				QPair<QDateTime, QDateTime> pair2 = qlTime[j];
 
-				Logger::writeLog(QString(u8"当前比较IP: %1").arg(key));
-				Logger::writeLog(QString(u8"表1 IP使用时间区间[%1, %2]").arg(pair.first.toString("yyyy/MM/dd hh:mm:ss")).arg(pair.second.toString("yyyy/MM/dd hh:mm:ss")));
-				Logger::writeLog(QString(u8"表2 IP使用时间区间[%1, %2]").arg(pair2.first.toString("yyyy/MM/dd hh:mm:ss")).arg(pair2.second.toString("yyyy/MM/dd hh:mm:ss")));
-
 				bool bIn = false;
 				//有时间交集, 计算交集区间
 				QPair<QDateTime, QDateTime> pairSame;
 				if (pair.first > pair2.first && pair.second < pair2.second)
 				{
+					/*如下：
+							<----->
+						<------------------->
+					*/
+					qDebug() << u8"交集情况①";
 					Logger::writeLog(u8"交集情况①");
 					pairSame = pair;
 					bIn = true;
 				}
 				else if (pair2.first > pair.first && pair2.second < pair.second)
 				{
+					/*如下：
+						<---------------->
+							<------>
+					*/
+					qDebug() << u8"交集情况②";
 					Logger::writeLog(u8"交集情况②");
 					pairSame = pair2;
 					bIn = true;
 				}
 				else if (pair2.first > pair.first && pair2.first < pair.second)
 				{
+					/* 如下：
+						<---->
+						  <----->
+					*/
+					qDebug() << u8"交集情况③";
 					Logger::writeLog(u8"交集情况③");
 					pairSame.first = pair2.first;
 					pairSame.second = pair.second;
@@ -479,21 +537,36 @@ QMap<QString, QList<QPair<QDateTime, QDateTime>>> Widget::getOverlappingTimePeri
 				}
 				else if (pair.first > pair2.first && pair.first < pair2.second)
 				{
+					/* 如下：
+							<------->
+						<------->
+					*/
+					qDebug() << u8"交集情况④";
 					Logger::writeLog(u8"交集情况④");
 					pairSame.first = pair.first;
 					pairSame.second = pair2.second;
 					bIn = true;
 				}
 
-
+				bRet |= bIn;
 				if (bIn)
 				{
 					qDebug() << u8"当前比较IP: " << key;
 					qDebug() << u8"表1 begin: " << pair.first << ", pair end: " << pair.second;
 					qDebug() << u8"表2 begin: " << pair2.first << ", pair end: " << pair2.second;
-
 					qDebug() << u8"===时间交集 begin: " << pairSame.first << ", end: " << pairSame.second << " ===\n";
+
+					//确保交集必记录
+					Logger::writeLog(QString(u8"当前比较IP: %1").arg(key));
+					Logger::writeLog(QString(u8"表1 IP使用时间区间[%1, %2]").arg(pair.first.toString("yyyy/MM/dd hh:mm:ss")).arg(pair.second.toString("yyyy/MM/dd hh:mm:ss")));
+					Logger::writeLog(QString(u8"表2 IP使用时间区间[%1, %2]").arg(pair2.first.toString("yyyy/MM/dd hh:mm:ss")).arg(pair2.second.toString("yyyy/MM/dd hh:mm:ss")));
 					Logger::writeLog(QString(u8"存在时间交集 [%1, %2]").arg(pairSame.first.toString("yyyy/MM/dd hh:mm:ss")).arg(pairSame.second.toString("yyyy/MM/dd hh:mm:ss")));
+
+					if (!ui->checkBox_logDetail->isChecked())
+					{
+						Logger::writeLog(u8"\n\n");
+					}
+
 					if (resultMap.contains(key))
 					{
 						resultMap[key].append(pairSame);
@@ -508,15 +581,29 @@ QMap<QString, QList<QPair<QDateTime, QDateTime>>> Widget::getOverlappingTimePeri
 				else
 				{
 					//qDebug() << u8"=====无时间交集=====";
-					Logger::writeLog(u8"=====无时间交集=====");
-				}
+					if (ui->checkBox_logDetail->isChecked())
+					{
+						Logger::writeLog(QString(u8"当前比较IP: %1").arg(key));
+						Logger::writeLog(QString(u8"表1 IP使用时间区间[%1, %2]").arg(pair.first.toString("yyyy/MM/dd hh:mm:ss")).arg(pair.second.toString("yyyy/MM/dd hh:mm:ss")));
+						Logger::writeLog(QString(u8"表2 IP使用时间区间[%1, %2]").arg(pair2.first.toString("yyyy/MM/dd hh:mm:ss")).arg(pair2.second.toString("yyyy/MM/dd hh:mm:ss")));
+						Logger::writeLog(u8"=====无时间交集=====");
+					}
 
-				Logger::writeLog(u8"\n\n");
+				}
+				if (ui->checkBox_logDetail->isChecked())
+				{
+					Logger::writeLog(u8"\n\n");
+				}
 
 			}//end for (int j = i + 1; j < qlTime.size(); j++)
 		}
-	}
 
+	}//end for (QString key : keys)
+
+	if (!bRet)
+	{
+		Logger::writeLog(u8"\n=====所有IP均无时间交集=====\n");
+	}
 
 	return resultMap;
 }

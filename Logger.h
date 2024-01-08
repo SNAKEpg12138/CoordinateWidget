@@ -17,7 +17,8 @@ public:
 		QString appName = fileInfo.baseName();
 
 		// 获取当前日期时间
-		QString currentTime = QDateTime::currentDateTime().toString("yyyyMMddHHmmss");
+		//QString currentTime = QDateTime::currentDateTime().toString("yyyyMMddHHmmss");
+		QString currentTime = QDateTime::currentDateTime().toString("yyyyMMdd");
 
 		// 确保程序运行目录下的log文件夹存在
 		QString logFolder = QDir::currentPath() + "/log";
@@ -41,14 +42,26 @@ public:
 		}
 	}
 
-	static void writeLog(const QString& message) {
+	static void writeLog(const QString& message)
+	{
+		startLogService();
 		if (!m_logFile.isOpen())
 			return;
 
+
 		QTextStream out(&m_logFile);
 		out.setCodec("UTF-8");
+
+		static bool bFirstRun = true;
+		if (bFirstRun)
+		{
+			bFirstRun = false;
+			out << "\n======software begin running======\n";
+		}
+
 		out << /*QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss.zzz ") << */message << "\n";
 		m_logFile.flush();
+		stopLogService();
 	}
 
 private:

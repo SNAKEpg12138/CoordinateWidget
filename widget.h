@@ -34,8 +34,12 @@ public:
 	void test2();
 
 	void getSameIP(const QList<IP_TIME>& ql, const QList<IP_TIME>& ql2, QList<QString>& qlOut);
+	void getAllIP(const QList<IP_TIME>& ql, const QList<IP_TIME>& ql2, QList<QString>& qlOut);
 
+	//计算IP使用时间交集
 	QMap<QString, QList<QPair<QDateTime, QDateTime>>> getOverlappingTimePeriods(QMap<QString, QList<QPair<QDateTime, QDateTime>>>& hashMap);
+
+	//打印/记录Map信息
 	void printMap(QMap<QString, QList<QPair<QDateTime, QDateTime>>>& hashMap);
 
 public slots:
@@ -51,11 +55,11 @@ private:
 
 	QCustomPlot* plot;
 
-	QVector<QList<IP_TIME>> vlIP_Time;
+	QVector<QList<IP_TIME>> vlIP_Time;	//保存每张表，每行数据的信息
 
-	QList<QString> qlLabels;
+	QList<QString> qlLabels;	//保存vlIP_Time中，重复使用的IP列表
 
-	QMap<QString, QList<QPair<QDateTime, QDateTime>>> hashMap;
+	QMap<QString, QList<QPair<QDateTime, QDateTime>>> hashMap;	//保存重复IP的每个使用时间段
 
 
 };
