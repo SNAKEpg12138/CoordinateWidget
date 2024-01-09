@@ -29,9 +29,9 @@ public:
 	~Widget();
 
 	bool readExcel();
-	void test();
+	void dataShow();
 
-	void test2();
+	void createHashMap();
 
 	void getSameIP(const QList<IP_TIME>& ql, const QList<IP_TIME>& ql2, QList<QString>& qlOut);
 	void getAllIP(const QList<IP_TIME>& ql, const QList<IP_TIME>& ql2, QList<QString>& qlOut);
@@ -57,7 +57,7 @@ private:
 
 	QVector<QList<IP_TIME>> vlIP_Time;	//保存每张表，每行数据的信息
 
-	QList<QString> qlLabels;	//保存vlIP_Time中，重复使用的IP列表
+	QList<QString> qlLabels;	//保存vlIP_Time中，所有使用到的IP列表
 
 	QMap<QString, QList<QPair<QDateTime, QDateTime>>> hashMap;	//保存重复IP的每个使用时间段
 

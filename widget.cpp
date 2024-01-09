@@ -50,9 +50,9 @@ void Widget::SlotBtnOpen()
 	if (readExcel())
 	{
 		//显示
-		test();
+		dataShow();
 
-		test2();
+		createHashMap();
 		qDebug() << "\n hash size: " << hashMap.size() << "\n";
 
 		//printMap(hashMap);
@@ -244,24 +244,28 @@ void Widget::getAllIP(const QList<IP_TIME>& ql, const QList<IP_TIME>& ql2, QList
 	qlOut = commonSet.values();
 }
 
-void Widget::test()
+void Widget::dataShow()
 {
-	qDebug() << "\n test2 \n";
+	qDebug() << "\n dataShow \n";
 	plot = new QCustomPlot();
 	mainHLayout->addWidget(plot);
 
 	plot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom | QCP::iSelectPlottables);
+
+	//悬浮显示各节点信息
 	//plot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom | QCP::iSelectPlottables | QCP::iSelectAxes);
 	//plot->setSelectionTolerance(5); // 根据需要调整选择公差，此处值为15像素
 	//connect(plot, SIGNAL(mouseMove(QMouseEvent*)), this, SLOT(showPointToolTip(QMouseEvent*)));
 
+	//设置时间x轴
 	QSharedPointer<QCPAxisTickerDateTime> dateTicker(new QCPAxisTickerDateTime);
-	//dateTicker->setDateTimeFormat("hh:mm:ss");
 	dateTicker->setDateTimeFormat("yyyy/MM/dd hh:mm:ss");
 	plot->xAxis->setTicker(dateTicker);
+
 	plot->xAxis->setLabel("Time");
 	plot->yAxis->setLabel("IP Address");
 
+	//QList<QString> qlLabels;	//保存vlIP_Time中，所有使用到的IP列表，用于IP值y轴构建
 	qlLabels.clear();
 
 	for (int i = 0; i < vlIP_Time.size(); i++)
@@ -302,6 +306,7 @@ void Widget::test()
 	for (int i = 0; i < vlIP_Time.size(); i++)
 	{
 		plot->addGraph();
+		//各节点连接成线
 		//plot->graph(i)->setLineStyle(QCPGraph::lsNone);
 		plot->graph(i)->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssDisc));
 		if (i == 0)
@@ -318,9 +323,6 @@ void Widget::test()
 
 	//添加数据
 	qDebug() << "\n add data \n";
-
-
-
 	for (int i = 0; i < vlIP_Time.size(); i++)
 	{
 
@@ -407,11 +409,14 @@ void Widget::resizeEvent(QResizeEvent* event)
 	QWidget::resizeEvent(event);
 }
 
-void Widget::test2()
+void Widget::createHashMap()
 {
+	//QMap<QString, QList<QPair<QDateTime, QDateTime>>> hashMap;	//保存重复IP的每个使用时间段
+	//例：(103.116.122.114, {[2023/07/02 12:01:34, 2023/07/02 15:34:55], [2023/09/12 08:37:22, 2023/09/14 22:30:12]})
 	hashMap.clear();
 
-	qDebug() << "test2--qlLabels size: " << qlLabels.size();
+	//QList<QString> qlLabels;	//保存vlIP_Time中，所有使用到的IP列表
+	qDebug() << "createHashMap--qlLabels size: " << qlLabels.size();
 
 	for (int i = 0; i < vlIP_Time.size(); i++)
 	{
@@ -481,6 +486,8 @@ QMap<QString, QList<QPair<QDateTime, QDateTime>>> Widget::getOverlappingTimePeri
 		QString qsLog = QString(u8"%1: %2").arg(QString::number(i + 1)).arg(keys.at(i));
 		Logger::writeLog(qsLog);
 	}
+
+	//所有使用到的IP列表
 	qDebug() << "qlLabels: " << qlLabels.size();
 
 	Logger::writeLog(QString(u8"\n\n"));
